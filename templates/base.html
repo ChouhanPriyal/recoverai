@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}RecoverAI{% endblock %} — AI Revenue Recovery Agent</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            50:  'rgba(0, 229, 255, 0.08)',
+            100: 'rgba(0, 229, 255, 0.15)',
+            200: 'rgba(0, 229, 255, 0.25)',
+            300: '#67E8F9',
+            400: '#22D3EE',
+            500: '#06B6D4',
+            600: '#00E5FF',
+            700: '#00B4D8',
+            800: '#0284C7',
+            900: '#0369A1',
+          },
+          dark: {
+            bg: '#090D16',
+            card: '#111726',
+            sidebar: '#0D1322',
+            border: '#1E293B',
+            hover: '#161F33',
+          }
+        },
+        fontFamily: {
+          sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        },
+        boxShadow: {
+          card: '0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05)',
+          glow: '0 0 20px rgba(0, 229, 255, 0.25)',
+        },
+      },
+    },
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/css/style.css">
+{% block head %}{% endblock %}
+</head>
+<body class="bg-[#090D16] font-sans text-slate-100 antialiased selection:bg-[#00E5FF] selection:text-[#090D16]">
+
+<div class="flex min-h-screen">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="w-64 shrink-0 bg-[#0D1322] border-r border-[#1E293B] flex flex-col fixed h-screen z-30">
+    <div class="px-5 py-5 flex items-center gap-2.5 border-b border-[#1E293B]">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00E5FF] to-[#00B4D8] text-[#090D16] flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(0,229,255,0.4)]">
+        <i data-lucide="zap" class="w-5 h-5 fill-current"></i>
+      </div>
+      <div class="leading-tight">
+        <p class="font-extrabold text-white text-[15px] tracking-wide">Recover<span class="text-[#00E5FF]">AI</span></p>
+        <p class="text-[11px] text-slate-400">AI Revenue Recovery Agent</p>
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+      {% set nav_items = [
+        ('dashboard', 'dashboard', 'layout-dashboard', 'Dashboard'),
+        ('failed_payments', 'failed-payments', 'circle-x', 'Failed Payments'),
+        ('customers', 'customers', 'users', 'Customers'),
+        ('recovery_agent', 'recovery-agent', 'bot', 'AI Recovery Agent'),
+        ('campaigns', 'campaigns', 'megaphone', 'Recovery Campaigns'),
+        ('analytics', 'analytics', 'bar-chart-3', 'Analytics'),
+        ('settings', 'settings', 'settings', 'Settings'),
+      ] %}
+      {% for key, href, icon, label in nav_items %}
+        {% set is_active = (active == key) %}
+        <a href="/{{ href }}"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-all duration-150
+                  {% if is_active %} bg-[#00E5FF]/10 text-[#00E5FF] font-bold border-l-2 border-[#00E5FF] shadow-[inset_0_0_12px_rgba(0,229,255,0.05)] {% else %} text-slate-400 hover:bg-[#161F33] hover:text-white {% endif %}">
+          <span class="relative flex items-center">
+            <i data-lucide="{{ icon }}" class="w-[18px] h-[18px] {% if is_active %} text-[#00E5FF] drop-shadow-[0_0_6px_rgba(0,229,255,0.5)] {% else %} text-slate-500 group-hover:text-slate-300 {% endif %}"></i>
+          </span>
+          <span>{{ label }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+
+    <div class="px-4 pb-5 pt-2 border-t border-[#1E293B]">
+      <div class="flex items-center gap-2 mb-3 px-1">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E5FF] opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#00E5FF]"></span>
+        </span>
+        <div class="leading-tight">
+          <p class="text-[12.5px] font-semibold text-slate-200">AI Agent is active</p>
+          <p class="text-[11px] text-slate-400">Monitoring your revenue</p>
+        </div>
+      </div>
+      <button class="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] text-[#090D16] text-[13px] font-extrabold shadow-[0_0_15px_rgba(0,229,255,0.3)] hover:brightness-110 transition-all">
+        Upgrade Plan
+      </button>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <div class="flex-1 flex flex-col ml-64">
+
+    <!-- Topbar -->
+    <header class="sticky top-0 z-20 bg-[#0D1322]/90 backdrop-blur border-b border-[#1E293B] px-8 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div>
+          <h1 class="text-xl font-bold text-white tracking-tight">{% block page_title %}Dashboard{% endblock %}</h1>
+          <p class="text-[13px] text-slate-400 mt-0.5">{% block page_subtitle %}Here's what's happening with your revenue recovery today.{% endblock %}</p>
+        </div>
+        <!-- Realtime indicator -->
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30 text-[11px] font-bold shadow-[0_0_10px_rgba(0,229,255,0.15)]">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E5FF] opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-[#00E5FF]"></span>
+          </span>
+          LIVE REALTIME
+        </span>
+      </div>
+      
+      <div class="flex items-center gap-3">
+        {% block page_actions %}{% endblock %}
+
+        <!-- Real-time Simulation Action Buttons -->
+        <button id="sim-fail-btn" title="Simulate a live Razorpay payment failure event" class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[12px] font-bold flex items-center gap-1.5 transition-colors">
+          <i data-lucide="zap" class="w-3.5 h-3.5"></i> + Fail Event
+        </button>
+        <button id="sim-recover-btn" title="Simulate customer completing payment via recovery link" class="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[12px] font-bold flex items-center gap-1.5 transition-colors">
+          <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Simulate Recovery
+        </button>
+
+        <button class="relative w-9 h-9 rounded-full bg-[#161F33] hover:bg-[#1E293B] border border-[#26354D] flex items-center justify-center transition-colors">
+          <i data-lucide="bell" class="w-[18px] h-[18px] text-slate-300"></i>
+          <span class="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#00E5FF] text-[#090D16] text-[9px] font-bold flex items-center justify-center">3</span>
+        </button>
+        <div class="flex items-center gap-2.5 pl-3 border-l border-[#1E293B]">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#00E5FF] to-[#00B4D8] text-[#090D16] flex items-center justify-center text-xs font-bold shadow-[0_0_10px_rgba(0,229,255,0.3)]">PP</div>
+          <div class="leading-tight hidden sm:block">
+            <p class="text-[13px] font-semibold text-slate-200">Priyal Patel</p>
+            <p class="text-[11px] text-slate-400">Admin</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 px-8 py-6">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script src="/static/js/common.js"></script>
+<script>
+  document.getElementById('sim-fail-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('sim-fail-btn');
+    btn.disabled = true;
+    try {
+      const res = await apiPost('/api/simulate/failed-payment');
+      showToast(`🔥 ${res.message}`, 'warning');
+      if (window.loadDashboardData) window.loadDashboardData();
+      if (window.loadQueue) window.loadQueue();
+      if (window.loadPayments) window.loadPayments();
+      if (window.loadAnalyticsData) window.loadAnalyticsData();
+    } catch(e) {
+      showToast('Error simulating failed payment: ' + e.message, 'warning');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('sim-recover-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('sim-recover-btn');
+    btn.disabled = true;
+    try {
+      const res = await apiPost('/api/simulate/recovery-success');
+      showToast(`🎉 ${res.message}`, 'success');
+      if (window.loadDashboardData) window.loadDashboardData();
+      if (window.loadQueue) window.loadQueue();
+      if (window.loadPayments) window.loadPayments();
+      if (window.loadAnalyticsData) window.loadAnalyticsData();
+    } catch(e) {
+      showToast('No pending payment to recover or error: ' + e.message, 'info');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+{% block scripts %}{% endblock %}
+<script>lucide.createIcons();</script>
+</body>
+</html>

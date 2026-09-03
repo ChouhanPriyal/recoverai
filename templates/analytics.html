@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+{% block page_subtitle %}Track your recovery performance and revenue impact.{% endblock %}
+{% block page_actions %}
+<button class="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[#26354D] bg-[#161F33] text-[13px] font-medium text-slate-300 hover:bg-[#1E293B] hover:text-white transition-colors">
+  <i data-lucide="calendar" class="w-4 h-4 text-[#00E5FF]"></i> Last 7 days <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+</button>
+{% endblock %}
+
+{% block content %}
+<div id="stat-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <div class="card p-6">
+    <h3 class="font-semibold text-white tracking-wide mb-4 flex items-center gap-2">
+      <i data-lucide="filter" class="w-4 h-4 text-[#00E5FF]"></i> Recovery Funnel
+    </h3>
+    <div id="funnel" class="space-y-2"></div>
+  </div>
+  <div class="card p-6">
+    <h3 class="font-semibold text-white tracking-wide mb-4 flex items-center gap-2">
+      <i data-lucide="activity" class="w-4 h-4 text-[#00E5FF]"></i> Recovered Revenue Over Time
+    </h3>
+    <canvas id="trendChart" height="200"></canvas>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <div class="card p-6">
+    <h3 class="font-semibold text-white tracking-wide mb-4 flex items-center gap-2">
+      <i data-lucide="alert-triangle" class="w-4 h-4 text-[#00E5FF]"></i> Recovery by Failure Reason
+    </h3>
+    <div class="flex items-center gap-6">
+      <canvas id="reasonDonut" width="160" height="160"></canvas>
+      <div id="reason-legend" class="space-y-2 text-[12.5px] flex-1"></div>
+    </div>
+  </div>
+  <div class="card p-6">
+    <h3 class="font-semibold text-white tracking-wide mb-4 flex items-center gap-2">
+      <i data-lucide="target" class="w-4 h-4 text-[#00E5FF]"></i> Recovery by Strategy
+    </h3>
+    <div class="flex items-center gap-6">
+      <canvas id="strategyDonut" width="160" height="160"></canvas>
+      <div id="strategy-legend" class="space-y-2 text-[12.5px] flex-1"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/analytics.js"></script>
+{% endblock %}

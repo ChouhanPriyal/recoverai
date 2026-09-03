@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Recovery Campaigns{% endblock %}
+{% block page_title %}Recovery Campaigns{% endblock %}
+{% block page_subtitle %}Create and manage bulk recovery campaigns.{% endblock %}
+{% block page_actions %}
+<button id="new-campaign-btn" class="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] text-[#090D16] text-[13px] font-extrabold shadow-[0_0_15px_rgba(0,229,255,0.3)] hover:brightness-110 transition-all">
+  <i data-lucide="plus" class="w-4 h-4"></i> Create Campaign
+</button>
+{% endblock %}
+
+{% block content %}
+<div id="tabs" class="flex items-center gap-2 mb-5"></div>
+
+<div class="card overflow-hidden mb-6">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-[13px]">
+      <thead>
+        <tr class="border-b border-[#1E293B] text-slate-400 text-[11.5px] uppercase tracking-wider bg-[#0D1322]/50">
+          <th class="px-5 py-3.5 font-bold">Campaign</th>
+          <th class="px-5 py-3.5 font-bold">Target Audience</th>
+          <th class="px-5 py-3.5 font-bold">Strategy</th>
+          <th class="px-5 py-3.5 font-bold">Customers</th>
+          <th class="px-5 py-3.5 font-bold">Potential Revenue</th>
+          <th class="px-5 py-3.5 font-bold">Recovered Revenue</th>
+          <th class="px-5 py-3.5 font-bold">Status</th>
+          <th class="px-5 py-3.5 font-bold">Action</th>
+        </tr>
+      </thead>
+      <tbody id="campaigns-tbody" class="divide-y divide-[#1E293B]"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="summary-cards" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4"></div>
+
+<!-- Create campaign modal -->
+<div id="modal-overlay" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+  <div class="card w-full max-w-lg p-6 bg-[#111726] border border-[#26354D] text-slate-100 shadow-2xl">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-white flex items-center gap-2">
+        <i data-lucide="megaphone" class="w-5 h-5 text-[#00E5FF]"></i> Create Recovery Campaign
+      </h3>
+      <button onclick="closeModal()" class="w-8 h-8 rounded-lg hover:bg-[#1E293B] text-slate-400 hover:text-white flex items-center justify-center transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <form id="campaign-form" class="space-y-4">
+      <div>
+        <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Campaign Name</label>
+        <input name="name" required class="w-full px-3 py-2.5 rounded-lg text-[13px]" placeholder="e.g. High Value Recovery" />
+      </div>
+      <div>
+        <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Target Audience</label>
+        <select name="target_audience" class="w-full px-3 py-2.5 rounded-lg text-[13px]">
+          <option>Failed Payments — Last 24h</option>
+          <option>High Value Customers</option>
+          <option>High Recovery Probability</option>
+          <option>Payments above ₹5,000</option>
+          <option>Payments under ₹1,000</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Recovery Strategy</label>
+        <select name="strategy" class="w-full px-3 py-2.5 rounded-lg text-[13px]">
+          <option>Payment Retry</option>
+          <option>Smart Reminder</option>
+          <option>Incentive Offer</option>
+          <option>Personalized Retry</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Est. Customers</label>
+          <input name="customer_count" type="number" min="0" value="0" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Potential Revenue (₹)</label>
+          <input name="potential_revenue" type="number" min="0" value="0" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+      </div>
+      <button type="submit" class="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] text-[#090D16] text-[13px] font-extrabold shadow-[0_0_15px_rgba(0,229,255,0.3)] hover:brightness-110 transition-all">
+        Create Campaign
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/campaigns.js"></script>
+{% endblock %}

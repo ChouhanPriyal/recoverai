@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Customers{% endblock %}
+{% block page_title %}Customers{% endblock %}
+{% block page_subtitle %}Manage your customers and their payment behavior.{% endblock %}
+{% block page_actions %}
+<button class="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[#26354D] bg-[#161F33] text-[13px] font-medium text-slate-300 hover:bg-[#1E293B] hover:text-white transition-colors">
+  <i data-lucide="sliders-horizontal" class="w-4 h-4 text-[#00E5FF]"></i> Filters
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="relative max-w-md mb-5">
+  <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+  <input id="search-input" type="text" placeholder="Search by name, email, phone..."
+         class="w-full pl-9 pr-3 py-2.5 rounded-lg text-[13px]" />
+</div>
+
+<div id="summary-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-[13px]">
+      <thead>
+        <tr class="border-b border-[#1E293B] text-slate-400 text-[11.5px] uppercase tracking-wider bg-[#0D1322]/50">
+          <th class="px-5 py-3.5 font-bold">Customer</th>
+          <th class="px-5 py-3.5 font-bold">Total Spent</th>
+          <th class="px-5 py-3.5 font-bold">Successful Payments</th>
+          <th class="px-5 py-3.5 font-bold">Failed Payments</th>
+          <th class="px-5 py-3.5 font-bold">Average Order</th>
+          <th class="px-5 py-3.5 font-bold">Last Payment</th>
+          <th class="px-5 py-3.5 font-bold">Risk Level</th>
+          <th class="px-5 py-3.5 font-bold">Action</th>
+        </tr>
+      </thead>
+      <tbody id="customers-tbody" class="divide-y divide-[#1E293B]"></tbody>
+    </table>
+  </div>
+  <div class="flex items-center justify-between px-5 py-3.5 border-t border-[#1E293B] text-[12.5px] text-slate-400 bg-[#0D1322]/40">
+    <span id="results-count">Showing 0 entries</span>
+  </div>
+</div>
+
+<div id="detail-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-40" onclick="closeDrawer()"></div>
+<aside id="detail-drawer" class="fixed top-0 right-0 h-screen w-full max-w-md bg-[#111726] border-l border-[#1E293B] shadow-2xl translate-x-full transition-transform duration-250 z-50 overflow-y-auto">
+  <div id="drawer-content" class="p-6 text-slate-100"></div>
+</aside>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/customers.js"></script>
+{% endblock %}

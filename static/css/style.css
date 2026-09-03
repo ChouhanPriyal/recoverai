@@ -1,0 +1,122 @@
+/* RecoverAI — Premium Futuristic Dark AI-Fintech Design System */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #00E5FF; border-radius: 6px; }
+::-webkit-scrollbar-track { background: #0A0E17; }
+
+body {
+  background-color: #090D16;
+  color: #F8FAFC;
+}
+
+.card {
+  background: #111726;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  border-color: rgba(0, 229, 255, 0.2);
+}
+
+.card-glow {
+  border-color: rgba(0, 229, 255, 0.4) !important;
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.15), inset 0 1px 0 0 rgba(0, 229, 255, 0.2);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-high    { background: rgba(16, 185, 129, 0.12); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.badge-medium  { background: rgba(245, 158, 11, 0.12); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.badge-low     { background: rgba(244, 63, 94, 0.12); color: #FB7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+.badge-running { background: rgba(16, 185, 129, 0.12); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.badge-completed { background: rgba(0, 229, 255, 0.12); color: #00E5FF; border: 1px solid rgba(0, 229, 255, 0.3); }
+.badge-draft   { background: rgba(148, 163, 184, 0.12); color: #CBD5E1; border: 1px solid rgba(148, 163, 184, 0.3); }
+.badge-paused  { background: rgba(245, 158, 11, 0.12); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+.table-row {
+  transition: background 0.15s ease;
+}
+.table-row:hover { background: rgba(0, 229, 255, 0.03); }
+
+.tab-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #94A3B8;
+  background: transparent;
+  transition: all 0.15s ease;
+}
+.tab-btn:hover {
+  color: #F8FAFC;
+  background: rgba(255, 255, 255, 0.05);
+}
+.tab-btn.active {
+  background: #00E5FF;
+  color: #090D16;
+  font-weight: 700;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.35);
+}
+
+input[type="text"], input[type="search"], select, textarea, input[type="number"], input[type="password"] {
+  background-color: #161F33 !important;
+  border: 1px solid #26354D !important;
+  color: #F8FAFC !important;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="text"]:focus, input[type="search"]:focus, select:focus, textarea:focus, input[type="number"]:focus, input[type="password"]:focus {
+  border-color: #00E5FF !important;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.25) !important;
+}
+
+.toggle {
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #1E293B;
+  border: 1px solid #334155;
+  position: relative;
+  cursor: pointer;
+  transition: all .2s ease;
+  flex-shrink: 0;
+}
+.toggle.on {
+  background: #00E5FF;
+  border-color: #00E5FF;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+}
+.toggle .knob {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  border-radius: 999px;
+  background: #94A3B8;
+  transition: transform .2s ease, background-color .2s ease;
+}
+.toggle.on .knob {
+  transform: translateX(18px);
+  background: #090D16;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #161F33 25%, #222F47 37%, #161F33 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: 8px;
+}
+@keyframes skeleton-loading {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Failed Payments{% endblock %}
+{% block page_title %}Failed Payments{% endblock %}
+{% block page_subtitle %}All failed payments that can be recovered.{% endblock %}
+{% block page_actions %}
+<button class="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[#26354D] bg-[#161F33] text-[13px] font-medium text-slate-300 hover:bg-[#1E293B] hover:text-white transition-colors">
+  <i data-lucide="sliders-horizontal" class="w-4 h-4 text-[#00E5FF]"></i> Filters
+</button>
+<button class="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] text-[#090D16] text-[13px] font-extrabold shadow-[0_0_15px_rgba(0,229,255,0.3)] hover:brightness-110 transition-all">
+  <i data-lucide="download" class="w-4 h-4"></i> Export
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="card p-4 mb-5">
+  <div class="flex items-center gap-3 mb-4">
+    <div class="relative flex-1 max-w-md">
+      <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+      <input id="search-input" type="text" placeholder="Search by customer, email, phone or payment ID..."
+             class="w-full pl-9 pr-3 py-2.5 rounded-lg text-[13px]" />
+    </div>
+  </div>
+  <div id="tabs" class="flex items-center gap-2 flex-wrap"></div>
+</div>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-[13px]">
+      <thead>
+        <tr class="border-b border-[#1E293B] text-slate-400 text-[11.5px] uppercase tracking-wider bg-[#0D1322]/50">
+          <th class="px-5 py-3.5 font-bold">Customer</th>
+          <th class="px-5 py-3.5 font-bold">Payment ID</th>
+          <th class="px-5 py-3.5 font-bold">Amount</th>
+          <th class="px-5 py-3.5 font-bold">Failure Reason</th>
+          <th class="px-5 py-3.5 font-bold">Attempts</th>
+          <th class="px-5 py-3.5 font-bold">Failed On</th>
+          <th class="px-5 py-3.5 font-bold">Recovery Score</th>
+          <th class="px-5 py-3.5 font-bold">Status</th>
+          <th class="px-5 py-3.5 font-bold">Action</th>
+        </tr>
+      </thead>
+      <tbody id="payments-tbody" class="divide-y divide-[#1E293B]"></tbody>
+    </table>
+  </div>
+  <div class="flex items-center justify-between px-5 py-3.5 border-t border-[#1E293B] text-[12.5px] text-slate-400 bg-[#0D1322]/40">
+    <span id="results-count">Showing 0 entries</span>
+  </div>
+</div>
+
+<!-- Detail drawer -->
+<div id="detail-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-40" onclick="closeDrawer()"></div>
+<aside id="detail-drawer" class="fixed top-0 right-0 h-screen w-full max-w-md bg-[#111726] border-l border-[#1E293B] shadow-2xl translate-x-full transition-transform duration-250 z-50 overflow-y-auto">
+  <div id="drawer-content" class="p-6 text-slate-100"></div>
+</aside>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/failed_payments.js"></script>
+{% endblock %}

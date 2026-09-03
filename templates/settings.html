@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}Configure your preferences and rules.{% endblock %}
+
+{% block content %}
+<div id="tabs" class="flex items-center gap-2 mb-5 border-b border-[#1E293B] pb-0"></div>
+
+<div id="tab-panels">
+
+  <!-- Recovery Rules -->
+  <div data-panel="rules" class="space-y-6">
+    <div class="card p-6">
+      <h3 class="font-semibold text-white mb-1">Automatic Recovery Rules</h3>
+      <p class="text-[12.5px] text-slate-400 mb-5">Control how the AI Agent behaves when a payment fails.</p>
+      <div id="toggle-rules" class="space-y-4"></div>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-semibold text-white mb-5">Recovery Rules Configuration</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Minimum Payment Amount (₹)</label>
+          <input id="minimum_payment_amount" type="number" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Maximum Recovery Attempts</label>
+          <input id="maximum_recovery_attempts" type="number" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Recovery Score Threshold (%)</label>
+          <input id="recovery_score_threshold" type="number" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Retry After (Hours)</label>
+          <input id="retry_after_hours" type="number" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notifications -->
+  <div data-panel="notifications" class="hidden space-y-6">
+    <div class="card p-6">
+      <h3 class="font-semibold text-white mb-1">Notification Preferences</h3>
+      <p class="text-[12.5px] text-slate-400 mb-5">Choose how you want to be notified about recovery activity.</p>
+      <div id="toggle-notifications" class="space-y-4"></div>
+    </div>
+  </div>
+
+  <!-- Integrations -->
+  <div data-panel="integrations" class="hidden space-y-6">
+    <div class="card p-6">
+      <h3 class="font-semibold text-white mb-1 flex items-center gap-2"><i data-lucide="link" class="w-4 h-4 text-[#00E5FF]"></i> Razorpay Integration</h3>
+      <p class="text-[12.5px] text-slate-400 mb-5">Connect Razorpay so failed-payment webhooks flow straight into the recovery pipeline.</p>
+      <div class="grid grid-cols-1 gap-4">
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Key ID</label>
+          <input id="razorpay_key_id" type="text" placeholder="rzp_live_xxxxxxxxxxxx" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Key Secret</label>
+          <input id="razorpay_key_secret" type="password" placeholder="••••••••••••" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Webhook Secret</label>
+          <input id="razorpay_webhook_secret" type="password" placeholder="••••••••••••" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+          <p class="text-[11.5px] text-slate-400 mt-1.5">Webhook URL: <code class="bg-[#161F33] text-[#00E5FF] px-2 py-0.5 rounded border border-[#26354D]">/api/webhooks/razorpay</code></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-semibold text-white mb-1 flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-[#00E5FF]"></i> AI Model Integration</h3>
+      <p class="text-[12.5px] text-slate-400 mb-5">Gemini powers recovery scoring, strategy selection, and message drafting.</p>
+      <div>
+        <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Gemini API Key</label>
+        <input id="gemini_api_key" type="password" placeholder="••••••••••••" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+      </div>
+    </div>
+  </div>
+
+  <!-- General -->
+  <div data-panel="general" class="hidden space-y-6">
+    <div class="card p-6">
+      <h3 class="font-semibold text-white mb-1">Workspace</h3>
+      <p class="text-[12.5px] text-slate-400 mb-5">General workspace details.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Business Name</label>
+          <input id="business_name" type="text" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Admin Email</label>
+          <input id="admin_email" type="text" class="w-full px-3 py-2.5 rounded-lg text-[13px]" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="flex justify-end mt-6">
+  <button id="save-btn" class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] text-[#090D16] text-[13px] font-extrabold shadow-[0_0_15px_rgba(0,229,255,0.3)] hover:brightness-110 transition-all">
+    Save Changes
+  </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/settings.js"></script>
+{% endblock %}

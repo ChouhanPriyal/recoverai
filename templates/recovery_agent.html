@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}AI Recovery Agent{% endblock %}
+{% block page_title %}AI Recovery Agent{% endblock %}
+{% block page_subtitle %}Watch your agent analyze, decide and recover revenue.{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+
+  <!-- Queue -->
+  <div class="card p-4 h-fit">
+    <p class="text-[12px] font-bold text-[#00E5FF] uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+      <i data-lucide="list" class="w-3.5 h-3.5"></i> Recovery Queue
+    </p>
+    <div class="relative mb-3">
+      <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+      <input id="queue-search" type="text" placeholder="Search payment or customer..." class="w-full pl-9 pr-3 py-2 rounded-lg text-[12.5px]" />
+    </div>
+    <div id="queue-list" class="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1"></div>
+  </div>
+
+  <!-- Detail -->
+  <div id="agent-detail">
+    <div class="card p-10 text-center text-slate-400 text-sm">Select a payment from the queue to see the AI Recovery Agent in action.</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/recovery_agent.js"></script>
+{% endblock %}
