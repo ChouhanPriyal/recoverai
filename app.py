@@ -5,6 +5,7 @@ Flask backend serving the dashboard UI and a JSON API backed by MySQL.
 Core product flow:
 Razorpay Payment Failure -> AI Analysis -> Recovery Score -> AI Decision -> Recovery Action -> Revenue Recovered
 """
+import os
 import pymysql
 import pymysql.cursors
 from datetime import datetime, timedelta
@@ -21,16 +22,35 @@ app.config.from_object(Config)
 # ---------------------------------------------------------------------------
 def get_db():
     if "db" not in g:
-        g.db = pymysql.connect(
-            host=app.config["MYSQL_HOST"],
-            port=app.config["MYSQL_PORT"],
-            user=app.config["MYSQL_USER"],
-            password=app.config["MYSQL_PASSWORD"],
-            database=app.config["MYSQL_DB"],
-            cursorclass=pymysql.cursors.DictCursor,
-            autocommit=True,
-        )
+        connect_kwargs = {
+            "host": app.config["MYSQL_HOST"],
+            "port": app.config["MYSQL_PORT"],
+            "user": app.config["MYSQL_USER"],
+            "password": app.config["MYSQL_PASSWORD"],
+            "database": app.config["MYSQL_DB"],
+            "cursorclass": pymysql.cursors.DictCursor,
+            "autocommit": True,
+            "connect_timeout": 10,
+        }
+        ssl_mode = os.environ.get("MYSQL_SSL_MODE") or os.environ.get("MYSQL_SSL")
+        if ssl_mode:
+            if ssl_mode.lower() in ("true", "1", "required", "verify-ca", "verify-full"):
+                connect_kwargs["ssl"] = {"rejectUnauthorized": False}
+        elif app.config["MYSQL_HOST"] not in ("localhost", "127.0.0.1"):
+            connect_kwargs["ssl"] = {"rejectUnauthorized": False}
+
+        g.db = pymysql.connect(**connect_kwargs)
     return g.db
+
+
+@app.errorhandler(pymysql.Error)
+def handle_db_error(e):
+    if request.path.startswith("/api/"):
+        return jsonify({
+            "ok": False,
+            "error": f"Database Error: {str(e)}. Ensure MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB are configured in Vercel."
+        }), 500
+    return jsonify({"error": str(e)}), 500
 
 
 @app.teardown_appcontext
@@ -587,6 +607,70 @@ def api_recovery_agent_recover(payment_id):
 # ---------------------------------------------------------------------------
 # API — Campaigns
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# API — Campaigns (Fully Dynamic DB Calculations)
+# ---------------------------------------------------------------------------
+def calculate_campaign_audience_metrics(target_audience):
+    """
+    Automatically queries database to find matching pending/in-progress payments and customers
+    for a given target_audience selection.
+    """
+    threshold = get_high_value_threshold()
+    audience = (target_audience or "").strip()
+
+    if audience == "High Value Customers":
+        where_clause = "WHERE p.recovery_state IN ('Pending', 'In Progress') AND c.total_spent >= %s"
+        params = [threshold]
+    elif audience == "High Recovery Probability":
+        where_clause = "WHERE p.recovery_state IN ('Pending', 'In Progress') AND p.recovery_score >= 70"
+        params = []
+    elif audience == "Payments above ₹5,000":
+        where_clause = "WHERE p.recovery_state IN ('Pending', 'In Progress') AND p.amount >= 5000"
+        params = []
+    elif audience == "Payments under ₹1,000":
+        where_clause = "WHERE p.recovery_state IN ('Pending', 'In Progress') AND p.amount < 1000"
+        params = []
+    else:  # "Failed Payments — Last 24h" or default
+        where_clause = "WHERE p.recovery_state IN ('Pending', 'In Progress') AND p.failed_at >= NOW() - INTERVAL 24 HOUR"
+        params = []
+
+    metrics = query(
+        f"""
+        SELECT COUNT(DISTINCT p.customer_id) AS cust_cnt,
+               COALESCE(SUM(p.amount), 0) AS pot_rev
+        FROM payments p JOIN customers c ON c.id = p.customer_id
+        {where_clause}
+        """,
+        params,
+        fetch="one",
+    )
+
+    matching_payments = query(
+        f"""
+        SELECT p.id FROM payments p JOIN customers c ON c.id = p.customer_id
+        {where_clause}
+        """,
+        params,
+    )
+    payment_ids = [p["id"] for p in (matching_payments or [])]
+
+    cust_cnt = int(metrics["cust_cnt"] or 0)
+    pot_rev = float(metrics["pot_rev"] or 0.0)
+
+    return cust_cnt, pot_rev, payment_ids
+
+
+@app.route("/api/campaigns/preview")
+def api_campaign_preview():
+    audience = request.args.get("target_audience", "")
+    cust_cnt, pot_rev, payment_ids = calculate_campaign_audience_metrics(audience)
+    return jsonify({
+        "customer_count": cust_cnt,
+        "potential_revenue": pot_rev,
+        "matching_payments_count": len(payment_ids),
+    })
+
+
 @app.route("/api/campaigns")
 def api_campaigns():
     status = request.args.get("status")
@@ -597,6 +681,20 @@ def api_campaigns():
         args.append(status.capitalize())
     sql += " ORDER BY created_at DESC"
     rows = query(sql, args)
+
+    # Recalculate recovered revenue dynamically for each campaign from linked payments
+    for c in rows:
+        rec_row = query(
+            """
+            SELECT COALESCE(SUM(p.amount), 0) AS recovered_amt
+            FROM campaign_payments cp JOIN payments p ON p.id = cp.payment_id
+            WHERE cp.campaign_id = %s AND p.recovery_state = 'Recovered'
+            """,
+            [c["id"]],
+            fetch="one",
+        )
+        c["recovered_revenue"] = float(rec_row["recovered_amt"] or 0)
+        query("UPDATE campaigns SET recovered_revenue=%s WHERE id=%s", [c["recovered_revenue"], c["id"]])
 
     summary = query(
         """
@@ -615,19 +713,23 @@ def api_campaigns():
 @app.route("/api/campaigns", methods=["POST"])
 def api_create_campaign():
     data = request.get_json(force=True) or {}
+    name = data.get("name", "New Recovery Campaign")
+    target_audience = data.get("target_audience", "Failed Payments — Last 24h")
+    strategy = data.get("strategy", "Payment Retry")
     status = (data.get("status") or "Draft").capitalize()
     if status not in ("Draft", "Running", "Completed", "Paused"):
         status = "Draft"
 
-    try:
-        cust_cnt = int(data.get("customer_count") or 0)
-    except (ValueError, TypeError):
-        cust_cnt = 0
+    # Automatically calculate customers and potential revenue from real matching payments
+    cust_cnt, pot_rev, payment_ids = calculate_campaign_audience_metrics(target_audience)
 
-    try:
-        pot_rev = float(data.get("potential_revenue") or 0)
-    except (ValueError, TypeError):
-        pot_rev = 0.0
+    # Fallback to provided form inputs if no pending payments match in database
+    if cust_cnt == 0 and data.get("customer_count"):
+        try: cust_cnt = int(data.get("customer_count"))
+        except: pass
+    if pot_rev == 0.0 and data.get("potential_revenue"):
+        try: pot_rev = float(data.get("potential_revenue"))
+        except: pass
 
     campaign_id = query(
         """
@@ -635,17 +737,24 @@ def api_create_campaign():
                                 potential_revenue, recovered_revenue, status)
         VALUES (%s, %s, %s, %s, %s, 0, %s)
         """,
-        [
-            data.get("name", "New Campaign"),
-            data.get("target_audience", "Failed Payments — Last 24h"),
-            data.get("strategy", "Payment Retry"),
-            cust_cnt,
-            pot_rev,
-            status,
-        ],
+        [name, target_audience, strategy, cust_cnt, pot_rev, status],
         fetch="id",
     )
-    return jsonify({"ok": True, "id": campaign_id})
+
+    # Link matching payments to campaign_payments
+    for pid in payment_ids:
+        query("INSERT IGNORE INTO campaign_payments (campaign_id, payment_id) VALUES (%s, %s)", [campaign_id, pid])
+
+    # If launched immediately as Running, execute AI recovery workflow on matching payments
+    if status == "Running" and payment_ids:
+        for pid in payment_ids:
+            query("UPDATE payments SET recovery_state='In Progress' WHERE id=%s", [pid])
+            query(
+                "INSERT INTO agent_activity (payment_id, activity, activity_type) VALUES (%s, %s, 'action')",
+                [pid, f"Bulk Campaign '{name}' Dispatched Strategy: {strategy}"],
+            )
+
+    return jsonify({"ok": True, "id": campaign_id, "customer_count": cust_cnt, "potential_revenue": pot_rev})
 
 
 @app.route("/api/campaigns/<int:campaign_id>/status", methods=["POST"])
@@ -655,6 +764,20 @@ def api_update_campaign_status(campaign_id):
     if new_status not in ("Draft", "Running", "Completed", "Paused"):
         new_status = "Running"
     query("UPDATE campaigns SET status=%s WHERE id=%s", [new_status, campaign_id])
+
+    # If switching to Running, trigger recovery actions for linked payments
+    if new_status == "Running":
+        camp = query("SELECT * FROM campaigns WHERE id=%s", [campaign_id], fetch="one")
+        linked = query("SELECT payment_id FROM campaign_payments WHERE campaign_id=%s", [campaign_id])
+        if camp and linked:
+            for item in linked:
+                pid = item["payment_id"]
+                query("UPDATE payments SET recovery_state='In Progress' WHERE id=%s AND recovery_state='Pending'", [pid])
+                query(
+                    "INSERT INTO agent_activity (payment_id, activity, activity_type) VALUES (%s, %s, 'action')",
+                    [pid, f"Campaign '{camp['name']}' Launched Strategy: {camp['strategy']}"],
+                )
+
     return jsonify({"ok": True, "status": new_status})
 
 

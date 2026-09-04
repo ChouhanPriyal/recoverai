@@ -86,6 +86,25 @@ async function loadCampaigns() {
   }
 }
 
+async function updateAudiencePreview() {
+  const select = document.getElementById('target-audience-select');
+  const previewText = document.getElementById('audience-preview-text');
+  if (!select || !previewText) return;
+
+  const targetAudience = select.value;
+  try {
+    const res = await apiGet('/api/campaigns/preview?target_audience=' + encodeURIComponent(targetAudience));
+    previewText.textContent = `Found ${res.customer_count} matching customers with ${formatINR(res.potential_revenue)} in recoverable payments.`;
+    
+    const custInput = document.querySelector('input[name="customer_count"]');
+    const potInput = document.querySelector('input[name="potential_revenue"]');
+    if (custInput) custInput.value = res.customer_count;
+    if (potInput) potInput.value = res.potential_revenue;
+  } catch(e) {
+    previewText.textContent = 'Auto-calculating matching audience metrics...';
+  }
+}
+
 async function toggleCampaignStatus(id, newStatus) {
   try {
     await apiPost(`/api/campaigns/${id}/status`, { status: newStatus });
@@ -114,6 +133,7 @@ function openModal() {
   if (modal) {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    updateAudiencePreview();
   }
 }
 
@@ -136,6 +156,11 @@ if (newBtn) {
   newBtn.addEventListener('click', openModal);
 }
 
+const selectElem = document.getElementById('target-audience-select');
+if (selectElem) {
+  selectElem.addEventListener('change', updateAudiencePreview);
+}
+
 const modalOverlay = document.getElementById('modal-overlay');
 if (modalOverlay) {
   modalOverlay.addEventListener('click', e => {
@@ -153,7 +178,7 @@ if (formElem) {
     try {
       const res = await apiPost('/api/campaigns', payload);
       if (res.ok) {
-        showToast(`🎉 Campaign "${payload.name}" created successfully!`, 'success');
+        showToast(`🎉 Campaign "${payload.name}" created! Calculated ${res.customer_count} customers (${formatINR(res.potential_revenue)})`, 'success');
         closeModal();
         e.target.reset();
         loadCampaigns();

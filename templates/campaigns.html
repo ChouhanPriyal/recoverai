@@ -49,13 +49,17 @@
       </div>
       <div>
         <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Target Audience</label>
-        <select name="target_audience" class="w-full px-3 py-2.5 rounded-lg text-[13px]">
+        <select id="target-audience-select" name="target_audience" class="w-full px-3 py-2.5 rounded-lg text-[13px] mb-2">
           <option>Failed Payments — Last 24h</option>
           <option>High Value Customers</option>
           <option>High Recovery Probability</option>
           <option>Payments above ₹5,000</option>
           <option>Payments under ₹1,000</option>
         </select>
+        <div id="audience-preview" class="p-2.5 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[12px] text-[#00E5FF] font-semibold flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          <span id="audience-preview-text">Auto-calculating matching DB audience...</span>
+        </div>
       </div>
       <div>
         <label class="text-[12.5px] font-semibold text-slate-300 block mb-1.5">Recovery Strategy</label>
