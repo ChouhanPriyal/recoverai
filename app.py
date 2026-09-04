@@ -18,39 +18,384 @@ app.config.from_object(Config)
 
 
 # ---------------------------------------------------------------------------
-# Database helpers
+# Database helpers (Universal Dual-Driver: MySQL + SQLite Fallback)
 # ---------------------------------------------------------------------------
+import re
+import sqlite3
+
+DB_MODE = "mysql"
+
+
+def init_sqlite_db(conn):
+    """Initializes schema and seeds dynamic data with relative timestamps into SQLite."""
+    cur = conn.cursor()
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS customers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT,
+        total_spent REAL DEFAULT 0,
+        successful_payments INTEGER DEFAULT 0,
+        failed_payments INTEGER DEFAULT 0,
+        avg_order REAL DEFAULT 0,
+        risk_level TEXT DEFAULT 'Low',
+        repeat_customer INTEGER DEFAULT 0,
+        last_payment_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        razorpay_payment_id TEXT NOT NULL,
+        customer_id INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        failure_reason TEXT NOT NULL,
+        attempts INTEGER DEFAULT 1,
+        recovery_score INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'Low',
+        recovery_state TEXT DEFAULT 'Pending',
+        failed_at DATETIME NOT NULL,
+        recovered_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS agent_activity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payment_id INTEGER NOT NULL,
+        activity TEXT NOT NULL,
+        activity_type TEXT DEFAULT 'analysis',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS ai_recommendations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payment_id INTEGER NOT NULL,
+        strategy TEXT NOT NULL,
+        reasoning TEXT,
+        message_draft TEXT,
+        confidence INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS campaigns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        target_audience TEXT,
+        strategy TEXT,
+        customer_count INTEGER DEFAULT 0,
+        potential_revenue REAL DEFAULT 0,
+        recovered_revenue REAL DEFAULT 0,
+        status TEXT DEFAULT 'Draft',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS campaign_payments (
+        campaign_id INTEGER NOT NULL,
+        payment_id INTEGER NOT NULL,
+        PRIMARY KEY (campaign_id, payment_id)
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS settings (
+        setting_key TEXT PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    conn.commit()
+
+    cur.execute("SELECT COUNT(*) FROM customers")
+    if cur.fetchone()[0] == 0:
+        now = datetime.now()
+        customers_data = [
+            ("Priya Sharma", "priya@email.com", "+91 90000 10001", 42500, 14, 2, 3035, "Low", 1, (now - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")),
+            ("Rahul Verma", "rahul@email.com", "+91 90000 10002", 38160, 12, 3, 3180, "Medium", 1, (now - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")),
+            ("Aman Singh", "aman@email.com", "+91 90000 10003", 12990, 8, 3, 1623, "High", 0, (now - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")),
+            ("Sneha Patel", "sneha@email.com", "+91 90000 10004", 65230, 16, 1, 4077, "Low", 1, (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")),
+            ("Karan Mehta", "karan@email.com", "+91 90000 10005", 21450, 10, 2, 2145, "Medium", 0, (now - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")),
+            ("Neha Gupta", "neha@email.com", "+91 90000 10006", 18300, 7, 2, 2614, "Medium", 0, (now - timedelta(days=4)).strftime("%Y-%m-%d %H:%M:%S")),
+            ("Vikram Raj", "vikram@email.com", "+91 90000 10007", 27650, 9, 3, 3072, "High", 0, (now - timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S")),
+        ]
+        cur.executemany(
+            "INSERT INTO customers (name, email, phone, total_spent, successful_payments, failed_payments, avg_order, risk_level, repeat_customer, last_payment_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            customers_data,
+        )
+
+        payments_data = [
+            ("pay_Qw12ErX9", 1, 2999, "Bank Declined", 1, 91, "High", "Pending", (now - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S"), None),
+            ("pay_Lk34PoY8", 2, 5499, "Network Error", 2, 76, "Medium", "Pending", (now - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S"), None),
+            ("pay_Zx56MnB2", 3, 1299, "Authentication Failed", 3, 32, "Low", "Pending", (now - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"), None),
+            ("pay_Po98LmN3", 4, 8999, "Bank Declined", 1, 94, "High", "Recovered", (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"), (now - timedelta(days=2, hours=-1)).strftime("%Y-%m-%d %H:%M:%S")),
+            ("pay_Ax9OQpQ7", 5, 4499, "Insufficient Funds", 2, 66, "Medium", "Pending", (now - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S"), None),
+            ("pay_Bn23QwE1", 6, 2249, "Bank Declined", 1, 89, "High", "Pending", (now - timedelta(days=4)).strftime("%Y-%m-%d %H:%M:%S"), None),
+            ("pay_Xc76UlM4", 7, 6499, "Network Error", 2, 58, "Medium", "Pending", (now - timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S"), None),
+        ]
+        cur.executemany(
+            "INSERT INTO payments (razorpay_payment_id, customer_id, amount, failure_reason, attempts, recovery_score, status, recovery_state, failed_at, recovered_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            payments_data,
+        )
+
+        activities = [
+            (1, "Payment failed received from Razorpay", "analysis", (now - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")),
+            (1, "Customer history analyzed", "analysis", (now - timedelta(hours=1, minutes=59)).strftime("%Y-%m-%d %H:%M:%S")),
+            (1, "Recovery probability calculated (91%)", "analysis", (now - timedelta(hours=1, minutes=58)).strftime("%Y-%m-%d %H:%M:%S")),
+            (1, "Best strategy selected: Payment Retry", "decision", (now - timedelta(hours=1, minutes=57)).strftime("%Y-%m-%d %H:%M:%S")),
+            (1, "Personalized message generated", "action", (now - timedelta(hours=1, minutes=56)).strftime("%Y-%m-%d %H:%M:%S")),
+        ]
+        cur.executemany(
+            "INSERT INTO agent_activity (payment_id, activity, activity_type, created_at) VALUES (?,?,?,?)",
+            activities,
+        )
+
+        cur.execute("""
+        INSERT INTO ai_recommendations (payment_id, strategy, reasoning, message_draft, confidence) VALUES
+        (1, 'Payment Retry', 'Customer has strong payment history (14 successful out of 16). High lifetime value customer.', 'Hi Priya, we noticed your last payment of ₹2,999 did not go through. Please retry using a different card or UPI.', 91)
+        """)
+
+        campaigns_data = [
+            ("High Value Recovery", "Payments above ₹5,000", "Payment Retry", 127, 812000, 306000, "Running"),
+            ("24h Reminder Campaign", "Payments made < 24h", "Smart Reminder", 249, 213000, 88000, "Running"),
+            ("Weekend Recovery", "Weekend Failures", "Reminder + Offer", 358, 154000, 54000, "Completed"),
+            ("Low Value Recovery", "Payments under ₹1,000", "Smart Reminder", 358, 268000, 42000, "Running"),
+            ("New Customer Recovery", "First-time Failures", "Personalized Retry", 156, 126000, 0, "Draft"),
+        ]
+        cur.executemany(
+            "INSERT INTO campaigns (name, target_audience, strategy, customer_count, potential_revenue, recovered_revenue, status) VALUES (?,?,?,?,?,?,?)",
+            campaigns_data,
+        )
+
+        settings_data = [
+            ("auto_analyze_failed_payments", "true"),
+            ("prioritize_high_value", "true"),
+            ("automated_reminders", "true"),
+            ("automated_recovery_actions", "true"),
+            ("minimum_payment_amount", "500"),
+            ("maximum_recovery_attempts", "3"),
+            ("recovery_score_threshold", "70"),
+            ("retry_after_hours", "24"),
+            ("cost_per_recovery_attempt", "15"),
+            ("business_name", "RecoverAI Demo Business"),
+            ("admin_email", "priyal@recoverai.app"),
+        ]
+        cur.executemany("INSERT OR IGNORE INTO settings (setting_key, setting_value) VALUES (?,?)", settings_data)
+        conn.commit()
+
+
+def check_and_seed_mysql(db):
+    """Ensures MySQL tables exist and seeds data if empty."""
+    try:
+        with db.cursor() as cur:
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS customers (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(120) NOT NULL,
+                email VARCHAR(160) NOT NULL,
+                phone VARCHAR(30),
+                total_spent DECIMAL(12,2) DEFAULT 0,
+                successful_payments INT DEFAULT 0,
+                failed_payments INT DEFAULT 0,
+                avg_order DECIMAL(12,2) DEFAULT 0,
+                risk_level ENUM('Low','Medium','High') DEFAULT 'Low',
+                repeat_customer BOOLEAN DEFAULT FALSE,
+                last_payment_at DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB;
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS payments (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                razorpay_payment_id VARCHAR(64) NOT NULL,
+                customer_id INT NOT NULL,
+                amount DECIMAL(12,2) NOT NULL,
+                failure_reason VARCHAR(60) NOT NULL,
+                attempts INT DEFAULT 1,
+                recovery_score INT DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'Low',
+                recovery_state VARCHAR(20) DEFAULT 'Pending',
+                failed_at DATETIME NOT NULL,
+                recovered_at DATETIME NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB;
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS agent_activity (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                payment_id INT NOT NULL,
+                activity VARCHAR(255) NOT NULL,
+                activity_type VARCHAR(20) DEFAULT 'analysis',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB;
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS ai_recommendations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                payment_id INT NOT NULL,
+                strategy VARCHAR(60) NOT NULL,
+                reasoning TEXT,
+                message_draft TEXT,
+                confidence INT DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB;
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS campaigns (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(150) NOT NULL,
+                target_audience VARCHAR(120),
+                strategy VARCHAR(60),
+                customer_count INT DEFAULT 0,
+                potential_revenue DECIMAL(14,2) DEFAULT 0,
+                recovered_revenue DECIMAL(14,2) DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'Draft',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB;
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS campaign_payments (
+                campaign_id INT NOT NULL,
+                payment_id INT NOT NULL,
+                PRIMARY KEY (campaign_id, payment_id)
+            ) ENGINE=InnoDB;
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                setting_key VARCHAR(80) PRIMARY KEY,
+                setting_value VARCHAR(255) NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB;
+            """)
+
+            cur.execute("SELECT COUNT(*) AS cnt FROM customers")
+            row = cur.fetchone()
+            cnt = row["cnt"] if isinstance(row, dict) else row[0]
+            if cnt == 0:
+                now = datetime.now()
+                customers_sql = """
+                INSERT INTO customers (name, email, phone, total_spent, successful_payments, failed_payments, avg_order, risk_level, repeat_customer, last_payment_at) VALUES
+                ('Priya Sharma', 'priya@email.com', '+91 90000 10001', 42500, 14, 2, 3035, 'Low', 1, %s),
+                ('Rahul Verma', 'rahul@email.com', '+91 90000 10002', 38160, 12, 3, 3180, 'Medium', 1, %s),
+                ('Aman Singh', 'aman@email.com', '+91 90000 10003', 12990, 8, 3, 1623, 'High', 0, %s),
+                ('Sneha Patel', 'sneha@email.com', '+91 90000 10004', 65230, 16, 1, 4077, 'Low', 1, %s),
+                ('Karan Mehta', 'karan@email.com', '+91 90000 10005', 21450, 10, 2, 2145, 'Medium', 0, %s),
+                ('Neha Gupta', 'neha@email.com', '+91 90000 10006', 18300, 7, 2, 2614, 'Medium', 0, %s),
+                ('Vikram Raj', 'vikram@email.com', '+91 90000 10007', 27650, 9, 3, 3072, 'High', 0, %s)
+                """
+                cur.execute(customers_sql, [
+                    now - timedelta(hours=2), now - timedelta(hours=5), now - timedelta(days=1),
+                    now - timedelta(days=2), now - timedelta(days=3), now - timedelta(days=4), now - timedelta(days=5)
+                ])
+
+                payments_sql = """
+                INSERT INTO payments (razorpay_payment_id, customer_id, amount, failure_reason, attempts, recovery_score, status, recovery_state, failed_at, recovered_at) VALUES
+                ('pay_Qw12ErX9', 1, 2999, 'Bank Declined', 1, 91, 'High', 'Pending', %s, NULL),
+                ('pay_Lk34PoY8', 2, 5499, 'Network Error', 2, 76, 'Medium', 'Pending', %s, NULL),
+                ('pay_Zx56MnB2', 3, 1299, 'Authentication Failed', 3, 32, 'Low', 'Pending', %s, NULL),
+                ('pay_Po98LmN3', 4, 8999, 'Bank Declined', 1, 94, 'High', 'Recovered', %s, %s),
+                ('pay_Ax9OQpQ7', 5, 4499, 'Insufficient Funds', 2, 66, 'Medium', 'Pending', %s, NULL),
+                ('pay_Bn23QwE1', 6, 2249, 'Bank Declined', 1, 89, 'High', 'Pending', %s, NULL),
+                ('pay_Xc76UlM4', 7, 6499, 'Network Error', 2, 58, 'Medium', 'Pending', %s, NULL)
+                """
+                cur.execute(payments_sql, [
+                    now - timedelta(hours=2), now - timedelta(hours=5), now - timedelta(days=1),
+                    now - timedelta(days=2), now - timedelta(days=2, hours=-1),
+                    now - timedelta(days=3), now - timedelta(days=4), now - timedelta(days=5)
+                ])
+
+                cur.execute("""
+                INSERT INTO agent_activity (payment_id, activity, activity_type, created_at) VALUES
+                (1, 'Payment failed received from Razorpay', 'analysis', %s),
+                (1, 'Customer history analyzed', 'analysis', %s),
+                (1, 'Recovery probability calculated (91%)', 'analysis', %s),
+                (1, 'Best strategy selected: Payment Retry', 'decision', %s),
+                (1, 'Personalized message generated', 'action', %s)
+                """, [
+                    now - timedelta(hours=2), now - timedelta(hours=1, minutes=59),
+                    now - timedelta(hours=1, minutes=58), now - timedelta(hours=1, minutes=57),
+                    now - timedelta(hours=1, minutes=56)
+                ])
+
+                cur.execute("""
+                INSERT INTO ai_recommendations (payment_id, strategy, reasoning, message_draft, confidence) VALUES
+                (1, 'Payment Retry', 'Customer has strong payment history (14 successful out of 16). High lifetime value customer.', 'Hi Priya, we noticed your last payment of ₹2,999 did not go through. Please retry using a different card or UPI.', 91)
+                """)
+
+                cur.execute("""
+                INSERT INTO campaigns (name, target_audience, strategy, customer_count, potential_revenue, recovered_revenue, status) VALUES
+                ('High Value Recovery', 'Payments above ₹5,000', 'Payment Retry', 127, 812000, 306000, 'Running'),
+                ('24h Reminder Campaign', 'Payments made < 24h', 'Smart Reminder', 249, 213000, 88000, 'Running'),
+                ('Weekend Recovery', 'Weekend Failures', 'Reminder + Offer', 358, 154000, 54000, 'Completed'),
+                ('Low Value Recovery', 'Payments under ₹1,000', 'Smart Reminder', 358, 268000, 42000, 'Running'),
+                ('New Customer Recovery', 'First-time Failures', 'Personalized Retry', 156, 126000, 0, 'Draft')
+                """)
+
+                cur.execute("""
+                INSERT INTO settings (setting_key, setting_value) VALUES
+                ('auto_analyze_failed_payments', 'true'),
+                ('prioritize_high_value', 'true'),
+                ('automated_reminders', 'true'),
+                ('automated_recovery_actions', 'true'),
+                ('minimum_payment_amount', '500'),
+                ('maximum_recovery_attempts', '3'),
+                ('recovery_score_threshold', '70'),
+                ('retry_after_hours', '24'),
+                ('cost_per_recovery_attempt', '15'),
+                ('business_name', 'RecoverAI Demo Business'),
+                ('admin_email', 'priyal@recoverai.app')
+                ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
+                """)
+    except Exception as e:
+        print(f"[MySQL Init Warning]: {e}")
+
+
 def get_db():
+    global DB_MODE
     if "db" not in g:
-        connect_kwargs = {
-            "host": app.config["MYSQL_HOST"],
-            "port": app.config["MYSQL_PORT"],
-            "user": app.config["MYSQL_USER"],
-            "password": app.config["MYSQL_PASSWORD"],
-            "database": app.config["MYSQL_DB"],
-            "cursorclass": pymysql.cursors.DictCursor,
-            "autocommit": True,
-            "connect_timeout": 10,
-        }
-        ssl_mode = os.environ.get("MYSQL_SSL_MODE") or os.environ.get("MYSQL_SSL")
-        if ssl_mode:
-            if ssl_mode.lower() in ("true", "1", "required", "verify-ca", "verify-full"):
-                connect_kwargs["ssl"] = {"rejectUnauthorized": False}
-        elif app.config["MYSQL_HOST"] not in ("localhost", "127.0.0.1"):
-            connect_kwargs["ssl"] = {"rejectUnauthorized": False}
+        is_vercel = bool(os.environ.get("VERCEL"))
+        mysql_host = app.config.get("MYSQL_HOST", "")
+        should_try_mysql = mysql_host and (not is_vercel or mysql_host not in ("localhost", "127.0.0.1"))
 
-        g.db = pymysql.connect(**connect_kwargs)
+        if should_try_mysql:
+            try:
+                connect_kwargs = {
+                    "host": app.config["MYSQL_HOST"],
+                    "port": app.config["MYSQL_PORT"],
+                    "user": app.config["MYSQL_USER"],
+                    "password": app.config["MYSQL_PASSWORD"],
+                    "database": app.config["MYSQL_DB"],
+                    "cursorclass": pymysql.cursors.DictCursor,
+                    "autocommit": True,
+                    "connect_timeout": 3,
+                }
+                ssl_mode = os.environ.get("MYSQL_SSL_MODE") or os.environ.get("MYSQL_SSL")
+                if ssl_mode:
+                    connect_kwargs["ssl"] = {"rejectUnauthorized": False}
+                elif app.config["MYSQL_HOST"] not in ("localhost", "127.0.0.1"):
+                    connect_kwargs["ssl"] = {"rejectUnauthorized": False}
+
+                db_conn = pymysql.connect(**connect_kwargs)
+                check_and_seed_mysql(db_conn)
+                g.db = db_conn
+                DB_MODE = "mysql"
+                return g.db
+            except Exception as e:
+                print(f"[MySQL Driver Warning]: MySQL connection failed ({e}). Falling back to SQLite.")
+
+        # SQLite Fallback (Uses /tmp/recoverai.db on Linux/Vercel for write access)
+        tmp_dir = "/tmp" if os.path.exists("/tmp") or os.name != "nt" else "."
+        db_path = os.path.join(tmp_dir, "recoverai.db")
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        init_sqlite_db(conn)
+        g.db = conn
+        DB_MODE = "sqlite"
+
     return g.db
-
-
-@app.errorhandler(pymysql.Error)
-def handle_db_error(e):
-    if request.path.startswith("/api/"):
-        return jsonify({
-            "ok": False,
-            "error": f"Database Error: {str(e)}. Ensure MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB are configured in Vercel."
-        }), 500
-    return jsonify({"error": str(e)}), 500
 
 
 @app.teardown_appcontext
@@ -62,15 +407,53 @@ def close_db(exception=None):
 
 def query(sql, args=None, fetch="all"):
     db = get_db()
-    with db.cursor() as cur:
-        cur.execute(sql, args or ())
+    args = list(args) if args else []
+
+    if DB_MODE == "sqlite":
+        sqlite_sql = sql
+        sqlite_sql = sqlite_sql.replace("%s", "?")
+        sqlite_sql = sqlite_sql.replace("NOW() - INTERVAL 14 DAY", "datetime('now', '-14 days', 'localtime')")
+        sqlite_sql = sqlite_sql.replace("NOW() - INTERVAL 7 DAY", "datetime('now', '-7 days', 'localtime')")
+        sqlite_sql = sqlite_sql.replace("NOW() - INTERVAL 1 DAY", "datetime('now', '-1 day', 'localtime')")
+        sqlite_sql = sqlite_sql.replace("NOW() - INTERVAL 24 HOUR", "datetime('now', '-24 hours', 'localtime')")
+        sqlite_sql = sqlite_sql.replace("NOW()", "datetime('now', 'localtime')")
+        sqlite_sql = sqlite_sql.replace("HOUR(recovered_at)", "CAST(strftime('%H', recovered_at) AS INTEGER)")
+        sqlite_sql = sqlite_sql.replace(
+            "AVG(TIMESTAMPDIFF(MINUTE, failed_at, recovered_at))",
+            "AVG((julianday(recovered_at) - julianday(failed_at)) * 1440)"
+        )
+        sqlite_sql = sqlite_sql.replace("INSERT IGNORE INTO", "INSERT OR IGNORE INTO")
+        sqlite_sql = re.sub(
+            r"ON DUPLICATE KEY UPDATE setting_value\s*=\s*VALUES\(setting_value\)",
+            "ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value",
+            sqlite_sql,
+            flags=re.IGNORECASE
+        )
+
+        cur = db.cursor()
+        cur.execute(sqlite_sql, args)
         if fetch == "all":
-            return cur.fetchall()
+            rows = cur.fetchall()
+            return [dict(r) for r in rows]
         if fetch == "one":
-            return cur.fetchone()
+            row = cur.fetchone()
+            return dict(row) if row else None
         if fetch == "id":
+            db.commit()
             return cur.lastrowid
+        db.commit()
         return None
+    else:
+        with db.cursor() as cur:
+            cur.execute(sql, args or ())
+            if fetch == "all":
+                return cur.fetchall()
+            if fetch == "one":
+                return cur.fetchone()
+            if fetch == "id":
+                return cur.lastrowid
+            return None
+
 
 
 # ---------------------------------------------------------------------------
